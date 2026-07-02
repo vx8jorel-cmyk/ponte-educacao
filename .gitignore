@@ -1,0 +1,17 @@
+.secrets/
+cortes/
+FilmCaption.Automation/bin/
+FilmCaption.Automation/obj/
+Ponte.Server/data/
+Ponte.Server/bin/
+Ponte.Server/obj/
+.tools/
+.agents/
+.github-pages-publish/
+*.log
+*.user
+data/
+dist/
+release/
+avaliacao-ia/
+*.jpg

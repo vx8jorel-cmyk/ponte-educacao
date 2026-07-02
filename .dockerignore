@@ -1,0 +1,8 @@
+**/bin
+**/obj
+.git
+.github-pages-publish
+.secrets
+cortes
+Ponte.Server/data
+*.log

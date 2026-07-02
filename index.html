@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="JORELWAST — central inteligente de produção e publicação de conteúdo em massa.">
+  <title>JORELWAST | Content Operating System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css?v=jorelwast-20260702-3">
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <a class="logo" href="#dashboard"><span>JW</span><strong>JOREL<em>WAST</em></strong></a>
+      <nav>
+        <button class="active" data-view="dashboard"><i data-lucide="layout-dashboard"></i><span>Visão geral</span></button>
+        <button data-view="studio"><i data-lucide="wand-sparkles"></i><span>Estúdio IA</span></button>
+        <button data-view="channels"><i data-lucide="gallery-vertical-end"></i><span>Canais</span></button>
+        <button data-view="queue"><i data-lucide="calendar-clock"></i><span>Fila</span><b id="navQueue">0</b></button>
+        <button data-view="accounts"><i data-lucide="users-round"></i><span>Contas</span></button>
+      </nav>
+      <div class="system-card"><span class="pulse"></span><div><b>Motor automático</b><small id="systemState">Verificando serviços</small></div></div>
+      <div class="sidebar-profile"><img id="sidebarAvatar" alt="Perfil"><div><b id="sidebarName">Sem perfil</b><small id="sidebarHandle">Conecte uma conta</small></div></div>
+    </aside>
+
+    <main>
+      <header class="topbar">
+        <div><span class="breadcrumb">JORELWAST / <b id="viewName">VISÃO GERAL</b></span><h1 id="pageTitle">Sua operação de conteúdo</h1></div>
+        <div class="top-actions"><button class="ghost" id="refresh"><i data-lucide="refresh-cw"></i></button><a class="primary" href="publicador.html"><i data-lucide="plus"></i>Novo lote</a></div>
+      </header>
+
+      <section class="view active" id="dashboardView">
+        <article class="profile-hero" id="profileHero">
+          <div class="hero-photo" id="heroPhoto"></div><div class="hero-shade"></div>
+          <div class="hero-content"><img id="heroAvatar" alt="Foto atual do perfil"><div><span>OPERAÇÃO ATIVA</span><h2 id="heroName">JORELWAST Studio</h2><p id="heroHandle">Conecte seu Instagram para personalizar este espaço.</p></div></div>
+          <div class="hero-actions"><a href="publicador.html"><i data-lucide="rocket"></i>Produzir agora</a><button data-go="accounts"><i data-lucide="link"></i>Gerenciar contas</button></div>
+        </article>
+
+        <div class="metrics">
+          <article><span><i data-lucide="users"></i>Contas conectadas</span><strong id="metricAccounts">0</strong><small>perfis na operação</small></article>
+          <article><span><i data-lucide="clock-3"></i>Na fila</span><strong id="metricQueued">0</strong><small id="nextPost">nenhum agendamento</small></article>
+          <article><span><i data-lucide="sparkles"></i>IA processando</span><strong id="metricAi">0</strong><small>títulos e legendas</small></article>
+          <article><span><i data-lucide="send"></i>Publicados</span><strong id="metricPublished">0</strong><small>entregas concluídas</small></article>
+        </div>
+
+        <div class="dashboard-grid">
+          <article class="panel production-panel">
+            <div class="panel-head"><div><span class="eyebrow">PIPELINE AUTOMA DARK</span><h3>Produção sem atrito</h3></div><a href="publicador.html">Abrir estúdio <i data-lucide="arrow-up-right"></i></a></div>
+            <div class="pipeline">
+              <div><span>01</span><i data-lucide="cloud-upload"></i><b>Entrada em massa</b><small>Até 100 mídias por lote</small></div>
+              <div><span>02</span><i data-lucide="brain-circuit"></i><b>Análise multimodal</b><small>Vídeo, fala, texto e contexto</small></div>
+              <div><span>03</span><i data-lucide="captions"></i><b>Copy automática</b><small>Título e legenda factual</small></div>
+              <div><span>04</span><i data-lucide="calendar-check"></i><b>Distribuição</b><small>10 posts/dia por conta</small></div>
+            </div>
+            <a class="drop-launch" href="publicador.html"><i data-lucide="folder-up"></i><div><b>Solte sua próxima pasta no Estúdio IA</b><small>A JORELWAST cuida da análise, agenda e publicação.</small></div><i data-lucide="chevron-right"></i></a>
+          </article>
+
+          <article class="panel activity-panel">
+            <div class="panel-head"><div><span class="eyebrow">TEMPO REAL</span><h3>Atividade recente</h3></div><button data-go="queue">Ver fila</button></div>
+            <div id="recentActivity" class="activity-list"><div class="empty">Nenhuma atividade ainda.</div></div>
+          </article>
+        </div>
+
+        <article class="panel channels-strip"><div class="panel-head"><div><span class="eyebrow">PORTFÓLIO</span><h3>Canais preparados para escala</h3></div><button data-go="channels">Todos os canais</button></div><div id="channelPreview" class="channel-preview"></div></article>
+      </section>
+
+      <section class="view" id="studioView">
+        <div class="section-intro"><span class="eyebrow">JORELWAST IA</span><h2>Uma mídia entra. O conteúdo pronto sai.</h2><p>A mesma IA multimodal usada no YouTube agora trabalha dentro do site.</p></div>
+        <div class="studio-grid">
+          <a class="studio-launch" href="publicador.html"><i data-lucide="sparkles"></i><h3>Criar lote inteligente</h3><p>Envie fotos e vídeos, selecione os perfis e deixe a IA gerar títulos, legendas e horários.</p><span>Abrir compositor <i data-lucide="arrow-right"></i></span></a>
+          <article class="feature-stack"><div><i data-lucide="scan-eye"></i><b>Reconhecimento factual</b><small>Confere falas, textos, cenas e identidade.</small></div><div><i data-lucide="search-check"></i><b>Pesquisa de verificação</b><small>Evita nomes falsos e títulos inventados.</small></div><div><i data-lucide="scissors"></i><b>Vídeos curtos</b><small>Pipeline preparado para conteúdo vertical.</small></div></article>
+        </div>
+      </section>
+
+      <section class="view" id="channelsView"><div class="section-intro"><span class="eyebrow">OPERAÇÕES</span><h2>Canais e nichos</h2><p>Organize cada linha editorial como uma operação independente.</p></div><div id="channelGrid" class="channel-grid"></div></section>
+      <section class="view" id="queueView"><div class="section-intro"><span class="eyebrow">CALENDÁRIO OPERACIONAL</span><h2>Fila de publicação</h2><p>Acompanhe análise, agendamento, publicação e falhas.</p></div><div class="panel table-wrap"><table><thead><tr><th>Conteúdo</th><th>Conta</th><th>IA</th><th>Programado</th><th>Status</th></tr></thead><tbody id="queueTable"></tbody></table></div></section>
+      <section class="view" id="accountsView"><div class="section-intro"><span class="eyebrow">CONEXÕES</span><h2>Contas sociais</h2><p>OAuth oficial, sem armazenar senhas.</p></div><div class="account-actions"><a class="primary" href="/api/auth/instagram/start"><i data-lucide="instagram"></i>Conectar Instagram</a><a class="secondary" href="/api/auth/tiktok/start"><i data-lucide="music-2"></i>Conectar TikTok</a></div><div id="accountsGrid" class="accounts-grid"></div></section>
+    </main>
+  </div>
+  <div class="toast" id="toast"></div>
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <script src="app.js?v=jorelwast-20260702-3"></script>
+</body>
+</html>

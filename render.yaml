@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: jorelwast
+    runtime: docker
+    plan: free
+    healthCheckPath: /api/status
+    envVars:
+      - key: Meta__AppId
+        sync: false
+      - key: Meta__AppSecret
+        sync: false
+      - key: Meta__RedirectUri
+        sync: false
+      - key: Meta__PublicBaseUrl
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false

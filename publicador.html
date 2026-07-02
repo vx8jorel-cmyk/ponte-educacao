@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Agende fotos e Reels em massa usando a API oficial do Instagram.">
+  <title>JORELWAST | Publicador em massa</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="publicador.css?v=jorelwast-20260702-3">
+  <link rel="stylesheet" href="jorelwast-extra.css?v=jorelwast-20260702-3">
+</head>
+<body>
+  <header class="topbar">
+    <a class="back" href="index.html" aria-label="Voltar"><i data-lucide="arrow-left"></i></a>
+    <div><strong>JORELWAST · Publicador em massa</strong><span>Fila oficial para fotos e Reels</span></div>
+    <span class="local-badge" id="connectionBadge"><i data-lucide="shield-check"></i> Verificando servidor</span>
+  </header>
+
+  <main>
+    <section class="composer" aria-labelledby="composerTitle">
+      <div class="section-heading">
+        <div><span class="eyebrow">NOVO LOTE</span><h1 id="composerTitle">Programe até 100 arquivos</h1></div>
+        <button class="secondary" id="connectAccount" type="button"><i data-lucide="instagram"></i> Conectar conta</button>
+      </div>
+
+      <div class="account-panel">
+        <div>
+          <strong>Contas que receberão o lote</strong>
+          <span>Marque uma ou várias contas. Cada uma terá seu próprio limite diário.</span>
+        </div>
+        <div id="accountList" class="account-list"></div>
+      </div>
+
+      <div class="workspace">
+        <div class="media-column">
+          <label class="dropzone" id="dropzone" for="mediaInput">
+            <input id="mediaInput" type="file" multiple accept="image/jpeg,image/png,video/mp4,video/quicktime">
+            <span class="upload-icon"><i data-lucide="images"></i></span>
+            <strong>Escolha fotos e vídeos</strong>
+            <small>Até 100 arquivos · JPG, PNG, MP4 ou MOV</small>
+          </label>
+          <div id="fileSummary" class="file-summary">Nenhum arquivo selecionado.</div>
+          <div id="fileList" class="file-list"></div>
+        </div>
+
+        <form id="postForm">
+          <div class="label-row"><label for="caption">Legenda do lote</label><span id="captionCount">0 / 2.200</span></div>
+          <textarea id="caption" maxlength="2200" rows="8" placeholder="Use a mesma legenda em todos ou escreva {arquivo} para inserir o nome de cada arquivo."></textarea>
+
+          <label class="ai-toggle"><input id="useAi" type="checkbox" checked><span><b>JORELWAST IA</b><small>Analisar cada mídia e gerar título + legenda automaticamente.</small></span></label>
+
+          <div class="row">
+            <div><label for="publishDate">Começar em</label><input id="publishDate" type="date" required></div>
+            <div><label for="publishTime">Horário</label><input id="publishTime" type="time" required></div>
+          </div>
+          <div class="row">
+            <div><label for="intervalMinutes">Intervalo entre posts</label><select id="intervalMinutes"><option value="30">30 minutos</option><option value="60">1 hora</option><option value="90" selected>1h30</option><option value="120">2 horas</option><option value="180">3 horas</option></select></div>
+            <div><label for="dailyLimit">Máximo diário por conta</label><select id="dailyLimit"><option value="10" selected>10 posts por dia</option><option value="8">8 posts por dia</option><option value="5">5 posts por dia</option><option value="3">3 posts por dia</option></select></div>
+          </div>
+
+          <div class="batch-preview" id="batchPreview">Selecione arquivos e contas para calcular o lote.</div>
+          <div class="actions">
+            <button class="primary" id="scheduleBatch" type="submit"><i data-lucide="calendar-plus"></i> Agendar lote</button>
+          </div>
+          <p class="hint"><i data-lucide="info"></i> O servidor publica automaticamente no horário. A senha do Instagram nunca passa pela Ponte.</p>
+        </form>
+      </div>
+    </section>
+
+    <aside class="queue" aria-labelledby="queueTitle">
+      <div class="section-heading"><div><span class="eyebrow">FILA REAL</span><h2 id="queueTitle">Publicações</h2></div><b id="queueCount">0</b></div>
+      <div class="queue-filters"><button class="filter active" data-status="all">Todas</button><button class="filter" data-status="scheduled">Agendadas</button><button class="filter" data-status="failed">Erros</button></div>
+      <div id="queueList" class="queue-list"></div>
+    </aside>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <script src="publicador.js?v=jorelwast-20260702-3"></script>
+</body>
+</html>

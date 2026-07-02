@@ -1,0 +1,10 @@
+{
+  "channels": [
+    { "id": "jorel-filmes", "name": "Jorel Filmes", "enabled": true, "format": "Cenas autorizadas com contexto e comentário original" },
+    { "id": "esporte-explicado", "name": "Esporte Explicado", "enabled": false, "format": "Jogadas autorizadas com narração e explicação técnica" },
+    { "id": "cortes-de-lives", "name": "Cortes de Lives", "enabled": false, "format": "Melhores momentos autorizados com contexto" },
+    { "id": "cortes-de-podcasts", "name": "Cortes de Podcasts", "enabled": false, "format": "Trechos autorizados, legendados e contextualizados" },
+    { "id": "historias-e-curiosidades", "name": "Histórias e Curiosidades", "enabled": false, "format": "Roteiros próprios sobre fatos verificáveis" },
+    { "id": "ciencia-em-um-minuto", "name": "Ciência em Um Minuto", "enabled": false, "format": "Explicações curtas com roteiro original" }
+  ]
+}
