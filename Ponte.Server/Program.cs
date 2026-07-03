@@ -6,6 +6,7 @@ using Microsoft.Extensions.FileProviders;
 using Ponte.Server;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Logging.AddFilter("System.Net.Http.HttpClient", LogLevel.Warning);
 const long MaximumUploadBytes = 5L * 1024 * 1024 * 1024;
 builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = MaximumUploadBytes);
 builder.Services.Configure<FormOptions>(options =>
@@ -22,7 +23,9 @@ builder.Services.AddSingleton<JsonStore>();
 builder.Services.AddHttpClient<InstagramService>();
 builder.Services.AddHttpClient<TikTokService>();
 builder.Services.AddHttpClient<ContentAiService>(client => client.Timeout = TimeSpan.FromMinutes(25));
+builder.Services.AddHttpClient<VideoBrandingService>(client => client.Timeout = TimeSpan.FromMinutes(5));
 builder.Services.AddHostedService<AiProcessingWorker>();
+builder.Services.AddHostedService<ProfileSyncWorker>();
 builder.Services.AddHostedService<PublishingWorker>();
 
 var app = builder.Build();
@@ -122,7 +125,7 @@ app.MapPost("/api/posts", async (HttpRequest request, JsonStore db, Cancellation
     if (!(await db.GetConnectionsAsync()).Any(item => item.UserId == accountId)) return Results.BadRequest(new { error = "Selecione uma conta do Instagram conectada." });
     var fileName = $"{Guid.NewGuid():N}{extension}"; var path = Path.Combine(db.UploadDirectory, fileName);
     await using (var output = File.Create(path)) await file.CopyToAsync(output, ct);
-    var post = new ScheduledPost { AccountId = accountId, Type = type, Caption = form["caption"].ToString(), MediaPath = path, PublishAt = publishAt.ToUniversalTime() };
+    var post = new ScheduledPost { AccountId = accountId, Type = type, Caption = form["caption"].ToString(), OriginalFileName = file.FileName, SourceMediaPath = path, MediaPath = path, PublishAt = publishAt.ToUniversalTime() };
     var posts = await db.GetPostsAsync(); posts.Add(post); await db.SavePostsAsync(posts);
     return Results.Created($"/api/posts/{post.Id}", post);
 }).DisableAntiforgery();
@@ -177,6 +180,7 @@ app.MapPost("/api/posts/bulk", async (HttpRequest request, JsonStore db, Cancell
                 Type = isVideo ? "REELS" : "IMAGE",
                 Caption = captionTemplate.Replace("{arquivo}", Path.GetFileNameWithoutExtension(file.FileName), StringComparison.OrdinalIgnoreCase),
                 OriginalFileName = file.FileName,
+                SourceMediaPath = path,
                 MediaPath = path,
                 AiStatus = useAi ? "pending" : "disabled",
                 PublishAt = cursor.ToUniversalTime()
@@ -191,7 +195,7 @@ app.MapPost("/api/posts/bulk", async (HttpRequest request, JsonStore db, Cancell
     return Results.Ok(new { count = created.Count, posts = created });
 }).DisableAntiforgery();
 
-app.MapPost("/api/tiktok/posts",async(HttpRequest request,JsonStore db,CancellationToken ct)=>{if(!request.HasFormContentType)return Results.BadRequest(new{error="Envie multipart/form-data."});var form=await request.ReadFormAsync(ct);var file=form.Files.GetFile("media");if(file is null||file.Length==0)return Results.BadRequest(new{error="Selecione um vídeo MP4."});var extension=Path.GetExtension(file.FileName).ToLowerInvariant();if(extension!=".mp4")return Results.BadRequest(new{error="O TikTok aceita vídeo MP4 nesta versão."});if(file.Length>64L*1024*1024)return Results.BadRequest(new{error="Use vídeo de até 64 MB nesta versão."});if(!DateTimeOffset.TryParse(form["publishAt"],out var publishAt))return Results.BadRequest(new{error="Data inválida."});if(await db.GetTikTokConnectionAsync() is null)return Results.BadRequest(new{error="Entre no TikTok primeiro."});var fileName=$"{Guid.NewGuid():N}.mp4";var path=Path.Combine(db.UploadDirectory,fileName);await using(var output=File.Create(path))await file.CopyToAsync(output,ct);var post=new ScheduledPost{Platform="tiktok",AccountId="tiktok",Type="VIDEO",Caption=form["caption"].ToString(),MediaPath=path,PublishAt=publishAt.ToUniversalTime()};var posts=await db.GetPostsAsync();posts.Add(post);await db.SavePostsAsync(posts);return Results.Created($"/api/posts/{post.Id}",post);}).DisableAntiforgery();
+app.MapPost("/api/tiktok/posts",async(HttpRequest request,JsonStore db,CancellationToken ct)=>{if(!request.HasFormContentType)return Results.BadRequest(new{error="Envie multipart/form-data."});var form=await request.ReadFormAsync(ct);var file=form.Files.GetFile("media");if(file is null||file.Length==0)return Results.BadRequest(new{error="Selecione um vídeo MP4."});var extension=Path.GetExtension(file.FileName).ToLowerInvariant();if(extension!=".mp4")return Results.BadRequest(new{error="O TikTok aceita vídeo MP4 nesta versão."});if(file.Length>64L*1024*1024)return Results.BadRequest(new{error="Use vídeo de até 64 MB nesta versão."});if(!DateTimeOffset.TryParse(form["publishAt"],out var publishAt))return Results.BadRequest(new{error="Data inválida."});if(await db.GetTikTokConnectionAsync() is null)return Results.BadRequest(new{error="Entre no TikTok primeiro."});var fileName=$"{Guid.NewGuid():N}.mp4";var path=Path.Combine(db.UploadDirectory,fileName);await using(var output=File.Create(path))await file.CopyToAsync(output,ct);var post=new ScheduledPost{Platform="tiktok",AccountId="tiktok",Type="VIDEO",Caption=form["caption"].ToString(),OriginalFileName=file.FileName,SourceMediaPath=path,MediaPath=path,PublishAt=publishAt.ToUniversalTime()};var posts=await db.GetPostsAsync();posts.Add(post);await db.SavePostsAsync(posts);return Results.Created($"/api/posts/{post.Id}",post);}).DisableAntiforgery();
 
 app.MapGet("/api/insights", async (string accountId, InstagramService instagram, CancellationToken ct) => Results.Ok(await instagram.GetInsightsAsync(accountId, ct)));
 app.MapFallbackToFile("index.html", new StaticFileOptions { FileProvider = new PhysicalFileProvider(root) });

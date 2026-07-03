@@ -19,13 +19,13 @@ public sealed class InstagramService
 
     public bool IsConfigured => _options.IsConfigured;
 
-    public async Task RefreshProfilesAsync(CancellationToken ct)
+    public async Task RefreshProfilesAsync(CancellationToken ct, bool force = false)
     {
         var connections = await _store.GetConnectionsAsync();
         var changed = false;
         for (var index = 0; index < connections.Count; index++)
         {
-            if (!string.IsNullOrWhiteSpace(connections[index].ProfilePictureUrl)) continue;
+            if (!force && connections[index].ProfileSyncedAt is { } synced && synced > DateTimeOffset.UtcNow.AddMinutes(-10)) continue;
             try
             {
                 var token = _protector.Unprotect(connections[index].ProtectedAccessToken);
@@ -38,8 +38,10 @@ public sealed class InstagramService
                 var name = profile.TryGetProperty("name", out var nameValue) ? nameValue.GetString() : null;
                 connections[index] = connections[index] with
                 {
+                    Username = profile.TryGetProperty("username", out var usernameValue) ? usernameValue.GetString() ?? connections[index].Username : connections[index].Username,
                     DisplayName = string.IsNullOrWhiteSpace(name) ? connections[index].DisplayName : name,
-                    ProfilePictureUrl = picture
+                    ProfilePictureUrl = picture,
+                    ProfileSyncedAt = DateTimeOffset.UtcNow
                 };
                 changed = true;
             }
@@ -86,7 +88,7 @@ public sealed class InstagramService
         var connections = await _store.GetConnectionsAsync();
         var existing = connections.FindIndex(item => item.UserId == userId);
         var displayName = existing >= 0 && connections[existing].DisplayName != connections[existing].Username ? connections[existing].DisplayName : accountName ?? username;
-        var connection = new InstagramConnection(userId, username, displayName, _protector.Protect(accessToken), DateTimeOffset.UtcNow, profilePictureUrl);
+        var connection = new InstagramConnection(userId, username, displayName, _protector.Protect(accessToken), DateTimeOffset.UtcNow, profilePictureUrl, DateTimeOffset.UtcNow);
         if (existing >= 0) connections[existing] = connection;
         else connections.Add(connection);
         await _store.SaveConnectionsAsync(connections);
@@ -98,7 +100,10 @@ public sealed class InstagramService
         var connection = (await _store.GetConnectionsAsync()).SingleOrDefault(item => item.UserId == post.AccountId) ?? throw new InvalidOperationException("Conta do Instagram não conectada.");
         var token = _protector.Unprotect(connection.ProtectedAccessToken);
         var publicUrl = _options.PublicBaseUrl.TrimEnd('/') + "/media/" + Uri.EscapeDataString(Path.GetFileName(post.MediaPath));
-        var fields = new Dictionary<string, string> { ["caption"] = post.Caption, ["access_token"] = token };
+        var personalizedCaption = post.Caption
+            .Replace("{usuario}", connection.Username, StringComparison.OrdinalIgnoreCase)
+            .Replace("{nome}", connection.DisplayName, StringComparison.OrdinalIgnoreCase);
+        var fields = new Dictionary<string, string> { ["caption"] = personalizedCaption, ["access_token"] = token };
         if (post.Type == "REELS") { fields["media_type"] = "REELS"; fields["video_url"] = publicUrl; fields["share_to_feed"] = "true"; }
         else fields["image_url"] = publicUrl;
 

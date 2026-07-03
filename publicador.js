@@ -172,5 +172,5 @@ const start = new Date(Date.now() + 30 * 60 * 1000);
 $("#publishDate").value = start.toLocaleDateString("en-CA");
 $("#publishTime").value = start.toTimeString().slice(0, 5);
 Promise.all([loadStatus(), loadPosts()]);
-setInterval(loadPosts, 30000);
+setInterval(() => Promise.all([loadStatus(), loadPosts()]), 30000);
 lucide.createIcons();

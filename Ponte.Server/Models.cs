@@ -1,6 +1,7 @@
 namespace Ponte.Server;
 
-public sealed record InstagramConnection(string UserId, string Username, string DisplayName, string ProtectedAccessToken, DateTimeOffset ConnectedAt, string? ProfilePictureUrl = null);
+public sealed record InstagramConnection(string UserId, string Username, string DisplayName, string ProtectedAccessToken,
+    DateTimeOffset ConnectedAt, string? ProfilePictureUrl = null, DateTimeOffset? ProfileSyncedAt = null);
 public sealed record TikTokConnection(string OpenId, string DisplayName, string AvatarUrl, string ProtectedAccessToken, string ProtectedRefreshToken, DateTimeOffset ExpiresAt, DateTimeOffset ConnectedAt);
 
 public sealed class ScheduledPost
@@ -12,10 +13,13 @@ public sealed class ScheduledPost
     public string Caption { get; set; } = "";
     public string Title { get; set; } = "";
     public string OriginalFileName { get; init; } = "";
+    public string SourceMediaPath { get; init; } = "";
     public string MediaPath { get; set; } = "";
     public string AiStatus { get; set; } = "disabled";
     public double? AiConfidence { get; set; }
     public string? AiEvidence { get; set; }
+    public string BrandingStatus { get; set; } = "pending";
+    public string? BrandingSignature { get; set; }
     public DateTimeOffset PublishAt { get; init; }
     public string Status { get; set; } = "scheduled";
     public string? InstagramMediaId { get; set; }

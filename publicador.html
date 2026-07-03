@@ -47,7 +47,7 @@
 
         <form id="postForm">
           <div class="label-row"><label for="caption">Legenda do lote</label><span id="captionCount">0 / 2.200</span></div>
-          <textarea id="caption" maxlength="2200" rows="8" placeholder="Use a mesma legenda em todos ou escreva {arquivo} para inserir o nome de cada arquivo."></textarea>
+          <textarea id="caption" maxlength="2200" rows="8" placeholder="A IA gera automaticamente. Em modelos manuais, use {nome}, {usuario} e {arquivo}."></textarea>
 
           <label class="ai-toggle"><input id="useAi" type="checkbox" checked><span><b>JORELWAST IA</b><small>Analisar cada mídia e gerar título + legenda automaticamente.</small></span></label>
 
@@ -64,7 +64,7 @@
           <div class="actions">
             <button class="primary" id="scheduleBatch" type="submit"><i data-lucide="calendar-plus"></i> Agendar lote</button>
           </div>
-          <p class="hint"><i data-lucide="info"></i> O servidor publica automaticamente no horário. A senha do Instagram nunca passa pela Ponte.</p>
+          <p class="hint"><i data-lucide="refresh-cw"></i> Foto, nome e @usuário são sincronizados antes da publicação; Reels recebem a identidade visual atual.</p>
         </form>
       </div>
     </section>

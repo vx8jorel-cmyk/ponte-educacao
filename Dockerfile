@@ -4,6 +4,9 @@ COPY . .
 RUN dotnet publish Ponte.Server/Ponte.Server.csproj -c Release -o /out --no-self-contained
 
 FROM mcr.microsoft.com/dotnet/aspnet:8.0
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ffmpeg fonts-dejavu-core \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app/Ponte.Server
 COPY --from=build /out ./
 COPY --from=build /src /app

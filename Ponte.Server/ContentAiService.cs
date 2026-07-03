@@ -26,8 +26,8 @@ public sealed class ContentAiService(HttpClient http, IWebHostEnvironment enviro
 
         var emoji = initial.ContentType switch { "FILME" => "🎬", "ESPORTE" => "⚽", "PODCAST" => "🎙️", "LIVE" => "🔴", _ => "▶️" };
         var footer = initial.ContentType == "FILME"
-            ? "Siga (@jorelfilmes) para descobrir seu filme favorito"
-            : "Siga o perfil para acompanhar mais conteúdos autorizados.";
+            ? "Siga (@{usuario}) para descobrir seu filme favorito"
+            : "Siga (@{usuario}) para acompanhar mais conteúdos autorizados.";
         var caption = $"{emoji} {initial.Title}\n\n{initial.Synopsis}\n\n{footer}";
         return initial with { Caption = caption };
     }

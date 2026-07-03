@@ -32,7 +32,7 @@ public sealed class AiProcessingWorker(JsonStore store, ContentAiService ai, ILo
                         foreach (var item in group)
                         {
                             item.Title = safeTitle;
-                            item.Caption = $"▶️ {safeTitle}\n\nConteúdo autorizado publicado automaticamente.\n\nSiga o perfil para acompanhar mais conteúdos.";
+                            item.Caption = $"▶️ {safeTitle}\n\nConteúdo autorizado publicado automaticamente.\n\nSiga (@{{usuario}}) para acompanhar mais conteúdos.";
                             item.AiConfidence = 0;
                             item.AiEvidence = "Metadados de contingência; a análise multimodal estava temporariamente indisponível.";
                             item.AiStatus = "fallback";
