@@ -6,12 +6,14 @@ services:
     healthCheckPath: /api/status
     envVars:
       - key: Meta__AppId
-        sync: false
+        value: "1501344328133482"
       - key: Meta__AppSecret
         sync: false
       - key: Meta__RedirectUri
-        sync: false
+        value: https://jorelwast.onrender.com/api/auth/instagram/callback
       - key: Meta__PublicBaseUrl
-        sync: false
+        value: https://jorelwast.onrender.com
+      - key: JORELWAST_DATA_DIR
+        value: /var/data
       - key: GEMINI_API_KEY
         sync: false
