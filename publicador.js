@@ -71,7 +71,10 @@ function renderQueue() {
     const article = document.createElement("article");
     article.className = `queue-item status-${post.status}`;
     const status = { scheduled: "Agendado", publishing: "Publicando", published: "Publicado", failed: "Erro" }[post.status] || post.status;
-    article.innerHTML = `<div><span class="status-pill">${status}</span><strong>${post.type === "REELS" ? "REEL" : "FOTO"} · @${escapeHtml(account?.username || post.accountId)}</strong><time>${new Date(post.publishAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</time></div><button class="icon-btn" title="Excluir" aria-label="Excluir"><i data-lucide="trash-2"></i></button><p>${escapeHtml(post.error || post.caption || "Sem legenda")}</p>`;
+    const aiLabel = { pending: "Na fila da IA", analyzing: "IA analisando...", ready: "Legenda pronta", fallback: "Legenda automática simples", disabled: "Manual" }[post.aiStatus] || post.aiStatus || "Manual";
+    const title = post.title || post.originalFileName || (post.type === "REELS" ? "REEL" : "FOTO");
+    const caption = post.error || post.caption || (post.aiStatus === "pending" ? "Aguardando a IA gerar título e legenda." : post.aiStatus === "analyzing" ? "A IA está analisando este arquivo. A publicação só sai depois que a legenda ficar pronta." : "Sem legenda");
+    article.innerHTML = `<div><span class="status-pill">${status}</span><strong>${post.type === "REELS" ? "REEL" : "FOTO"} · @${escapeHtml(account?.username || post.accountId)}</strong><time>${new Date(post.publishAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</time></div><button class="icon-btn" title="Excluir" aria-label="Excluir"><i data-lucide="trash-2"></i></button><p><b>${escapeHtml(title)}</b><br><small>${escapeHtml(aiLabel)}</small><br>${escapeHtml(caption)}</p>`;
     article.querySelector("button").addEventListener("click", async () => {
       if (!confirm("Excluir esta publicação da fila?")) return;
       try { await api(`/api/posts/${post.id}`, { method: "DELETE" }); await loadPosts(); }
