@@ -21,3 +21,9 @@ services:
         value: /var/data
       - key: GEMINI_API_KEY
         sync: false
+      - key: YouTube__ClientId
+        sync: false
+      - key: YouTube__ClientSecret
+        sync: false
+      - key: YouTube__RedirectUri
+        value: https://jorelwast.onrender.com/api/auth/youtube/callback

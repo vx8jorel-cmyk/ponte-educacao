@@ -17,11 +17,13 @@ builder.Services.Configure<FormOptions>(options =>
 builder.Configuration.AddUserSecrets<Program>(optional: true, reloadOnChange: true);
 builder.Services.Configure<MetaOptions>(builder.Configuration.GetSection("Meta"));
 builder.Services.Configure<TikTokOptions>(builder.Configuration.GetSection("TikTok"));
+builder.Services.Configure<YouTubeOptions>(builder.Configuration.GetSection("YouTube"));
 var dataDirectory = Environment.GetEnvironmentVariable("JORELWAST_DATA_DIR") ?? Path.Combine(builder.Environment.ContentRootPath, "data");
 builder.Services.AddDataProtection().PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(dataDirectory, "keys")));
 builder.Services.AddSingleton<JsonStore>();
 builder.Services.AddHttpClient<InstagramService>();
 builder.Services.AddHttpClient<TikTokService>();
+builder.Services.AddHttpClient<YouTubeService>(client => client.Timeout = TimeSpan.FromMinutes(30));
 builder.Services.AddHttpClient<ContentAiService>(client => client.Timeout = TimeSpan.FromMinutes(25));
 builder.Services.AddHttpClient<VideoBrandingService>(client => client.Timeout = TimeSpan.FromMinutes(5));
 builder.Services.AddHostedService<AiProcessingWorker>();
@@ -89,6 +91,33 @@ app.MapGet("/api/auth/tiktok/start", (HttpContext context,TikTokService tiktok) 
 app.MapGet("/api/auth/tiktok/callback",async(HttpContext context,string? code,string? state,string? error,TikTokService tiktok,CancellationToken ct)=>{ if(error is not null)return Results.Redirect("/?tiktok=denied"); if(string.IsNullOrWhiteSpace(code)||string.IsNullOrWhiteSpace(state)||!context.Request.Cookies.TryGetValue("ponte_tiktok_state",out var expected)||state!=expected||!context.Request.Cookies.TryGetValue("ponte_tiktok_verifier",out var verifier))return Results.BadRequest("Estado OAuth do TikTok inválido."); await tiktok.ExchangeCodeAsync(code,verifier,ct); context.Response.Cookies.Delete("ponte_tiktok_state");context.Response.Cookies.Delete("ponte_tiktok_verifier");return Results.Redirect("/?tiktok=connected");});
 app.MapDelete("/api/auth/tiktok/session",async(JsonStore db)=>{await db.SaveTikTokConnectionAsync(null);return Results.NoContent();});
 
+app.MapGet("/api/youtube/status", async (YouTubeService youtube, JsonStore db) =>
+{
+    var connection = await db.GetYouTubeConnectionAsync();
+    return Results.Ok(new
+    {
+        configured = youtube.IsConfigured,
+        connected = connection is not null,
+        account = connection is null ? null : new { id = connection.ChannelId, title = connection.Title, thumbnailUrl = connection.ThumbnailUrl }
+    });
+});
+app.MapGet("/api/auth/youtube/start", (HttpContext context, YouTubeService youtube) =>
+{
+    if (!youtube.IsConfigured) return Results.Redirect("/?error=youtube_not_configured");
+    var state = Convert.ToHexString(RandomNumberGenerator.GetBytes(24));
+    context.Response.Cookies.Append("ponte_youtube_state", state, new CookieOptions { HttpOnly = true, Secure = true, SameSite = SameSiteMode.Lax, MaxAge = TimeSpan.FromMinutes(10) });
+    return Results.Redirect(youtube.GetAuthorizationUrl(state));
+});
+app.MapGet("/api/auth/youtube/callback", async (HttpContext context, string? code, string? state, string? error, YouTubeService youtube, CancellationToken ct) =>
+{
+    if (error is not null) return Results.Redirect("/?youtube=denied");
+    if (string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(state) || !context.Request.Cookies.TryGetValue("ponte_youtube_state", out var expected) || !CryptographicOperations.FixedTimeEquals(System.Text.Encoding.UTF8.GetBytes(state), System.Text.Encoding.UTF8.GetBytes(expected))) return Results.BadRequest("Estado OAuth do YouTube inválido.");
+    await youtube.ExchangeCodeAsync(code, ct);
+    context.Response.Cookies.Delete("ponte_youtube_state");
+    return Results.Redirect("/?youtube=connected#accounts");
+});
+app.MapDelete("/api/auth/youtube/session", async (JsonStore db) => { await db.SaveYouTubeConnectionAsync(null); return Results.NoContent(); });
+
 app.MapGet("/api/auth/instagram/start", (HttpContext context, InstagramService instagram) =>
 {
     if (!instagram.IsConfigured) return Results.Redirect("/?error=meta_not_configured");
@@ -145,8 +174,8 @@ app.MapPost("/api/posts/bulk", async (HttpRequest request, JsonStore db, Cancell
     if (accountIds.Length * files.Count > 500) return Results.BadRequest(new { error = "O lote pode gerar no máximo 500 publicações." });
 
     if (!DateTimeOffset.TryParse(form["publishAt"], out var requestedStart)) return Results.BadRequest(new { error = "Data inicial inválida." });
-    var intervalMinutes = int.TryParse(form["intervalMinutes"], out var intervalValue) ? Math.Clamp(intervalValue, 5, 1440) : 90;
-    var dailyLimit = int.TryParse(form["dailyLimit"], out var limitValue) ? Math.Clamp(limitValue, 1, 10) : 10;
+    var intervalMinutes = int.TryParse(form["intervalMinutes"], out var intervalValue) ? Math.Clamp(intervalValue, 1, 10080) : 90;
+    var dailyLimit = int.TryParse(form["dailyLimit"], out var limitValue) ? Math.Clamp(limitValue, 1, 100) : 10;
     var captionTemplate = form["caption"].ToString();
     var useAi = !string.Equals(form["useAi"], "false", StringComparison.OrdinalIgnoreCase);
     var posts = await db.GetPostsAsync();
@@ -196,6 +225,39 @@ app.MapPost("/api/posts/bulk", async (HttpRequest request, JsonStore db, Cancell
 }).DisableAntiforgery();
 
 app.MapPost("/api/tiktok/posts",async(HttpRequest request,JsonStore db,CancellationToken ct)=>{if(!request.HasFormContentType)return Results.BadRequest(new{error="Envie multipart/form-data."});var form=await request.ReadFormAsync(ct);var file=form.Files.GetFile("media");if(file is null||file.Length==0)return Results.BadRequest(new{error="Selecione um vídeo MP4."});var extension=Path.GetExtension(file.FileName).ToLowerInvariant();if(extension!=".mp4")return Results.BadRequest(new{error="O TikTok aceita vídeo MP4 nesta versão."});if(file.Length>64L*1024*1024)return Results.BadRequest(new{error="Use vídeo de até 64 MB nesta versão."});if(!DateTimeOffset.TryParse(form["publishAt"],out var publishAt))return Results.BadRequest(new{error="Data inválida."});if(await db.GetTikTokConnectionAsync() is null)return Results.BadRequest(new{error="Entre no TikTok primeiro."});var fileName=$"{Guid.NewGuid():N}.mp4";var path=Path.Combine(db.UploadDirectory,fileName);await using(var output=File.Create(path))await file.CopyToAsync(output,ct);var post=new ScheduledPost{Platform="tiktok",AccountId="tiktok",Type="VIDEO",Caption=form["caption"].ToString(),OriginalFileName=file.FileName,SourceMediaPath=path,MediaPath=path,PublishAt=publishAt.ToUniversalTime()};var posts=await db.GetPostsAsync();posts.Add(post);await db.SavePostsAsync(posts);return Results.Created($"/api/posts/{post.Id}",post);}).DisableAntiforgery();
+
+app.MapPost("/api/youtube/posts", async (HttpRequest request, JsonStore db, CancellationToken ct) =>
+{
+    if (!request.HasFormContentType) return Results.BadRequest(new { error = "Envie multipart/form-data." });
+    var form = await request.ReadFormAsync(ct);
+    var file = form.Files.GetFile("media");
+    if (file is null || file.Length == 0) return Results.BadRequest(new { error = "Selecione um vídeo." });
+    var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+    if (extension is not (".mp4" or ".mov" or ".m4v" or ".webm")) return Results.BadRequest(new { error = "O YouTube aceita MP4, MOV, M4V ou WEBM nesta versão." });
+    if (file.Length > 1024L * 1024 * 1024) return Results.BadRequest(new { error = "Use vídeo de até 1 GB nesta versão." });
+    if (!DateTimeOffset.TryParse(form["publishAt"], out var publishAt)) return Results.BadRequest(new { error = "Data inválida." });
+    var connection = await db.GetYouTubeConnectionAsync();
+    if (connection is null) return Results.BadRequest(new { error = "Conecte o YouTube primeiro." });
+    var fileName = $"{Guid.NewGuid():N}{extension}";
+    var path = Path.Combine(db.UploadDirectory, fileName);
+    await using (var output = File.Create(path)) await file.CopyToAsync(output, ct);
+    var post = new ScheduledPost
+    {
+        Platform = "youtube",
+        AccountId = connection.ChannelId,
+        Type = "VIDEO",
+        Title = form["title"].ToString(),
+        Caption = form["caption"].ToString(),
+        OriginalFileName = file.FileName,
+        SourceMediaPath = path,
+        MediaPath = path,
+        PublishAt = publishAt.ToUniversalTime()
+    };
+    var posts = await db.GetPostsAsync();
+    posts.Add(post);
+    await db.SavePostsAsync(posts);
+    return Results.Created($"/api/posts/{post.Id}", post);
+}).DisableAntiforgery();
 
 app.MapGet("/api/insights", async (string accountId, InstagramService instagram, CancellationToken ct) => Results.Ok(await instagram.GetInsightsAsync(accountId, ct)));
 app.MapFallbackToFile("index.html", new StaticFileOptions { FileProvider = new PhysicalFileProvider(root) });

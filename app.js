@@ -1,6 +1,6 @@
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
-let state = { status: {}, dashboard: {}, posts: [], channels: [] };
+let state = { status: {}, youtube: {}, dashboard: {}, posts: [], channels: [] };
 const labels = { dashboard:["VISÃO GERAL","Sua operação de conteúdo"], studio:["ESTÚDIO IA","Produção automática"], channels:["CANAIS","Portfólio de conteúdo"], queue:["FILA","Calendário operacional"], accounts:["CONTAS","Conexões sociais"] };
 
 async function get(path){const response=await fetch(path);if(!response.ok)throw new Error(`${path}: ${response.status}`);return response.json()}
@@ -10,8 +10,8 @@ function toast(text){const node=$("#toast");node.textContent=text;node.classList
 
 async function load(){
   try{
-    const [status,dashboard,posts,channelData]=await Promise.all([get("/api/status"),get("/api/dashboard"),get("/api/posts"),get("/channels.json").catch(()=>({channels:[]}))]);
-    state={status,dashboard,posts,channels:channelData.channels||[]};render();
+    const [status,youtube,dashboard,posts,channelData]=await Promise.all([get("/api/status"),get("/api/youtube/status").catch(()=>({})),get("/api/dashboard"),get("/api/posts"),get("/channels.json").catch(()=>({channels:[]}))]);
+    state={status,youtube,dashboard,posts,channels:channelData.channels||[]};render();
   }catch(error){$("#systemState").textContent="Servidor desconectado";console.error(error)}
 }
 
@@ -48,7 +48,11 @@ function renderQueue(posts,accounts){
 }
 
 function renderAccounts(accounts){
-  $("#accountsGrid").innerHTML=accounts.length?accounts.map(a=>`<article class="account-card"><div class="account-cover" style="background-image:url('${(a.avatarUrl||"").replaceAll("'","%27")}')"></div><img src="${esc(a.avatarUrl||"assets/profile-placeholder.svg")}" alt=""><div><b>${esc(a.name||a.username)}</b><small>@${esc(a.username)}</small><span><i data-lucide="badge-check"></i> Instagram conectado</span></div></article>`).join(""):'<div class="empty account-empty"><b>Nenhuma conta conectada</b><span>Conecte o Instagram para criar o fundo dinâmico e começar a publicar.</span></div>';
+  const youtube = state.youtube?.account;
+  const instagramCards = accounts.map(a=>`<article class="account-card"><div class="account-cover" style="background-image:url('${(a.avatarUrl||"").replaceAll("'","%27")}')"></div><img src="${esc(a.avatarUrl||"assets/profile-placeholder.svg")}" alt=""><div><b>${esc(a.name||a.username)}</b><small>@${esc(a.username)}</small><span><i data-lucide="badge-check"></i> Instagram conectado</span></div></article>`);
+  const youtubeCard = youtube ? [`<article class="account-card"><div class="account-cover" style="background-image:url('${(youtube.thumbnailUrl||"").replaceAll("'","%27")}')"></div><img src="${esc(youtube.thumbnailUrl||"assets/profile-placeholder.svg")}" alt=""><div><b>${esc(youtube.title||"YouTube")}</b><small>${esc(youtube.id||"canal")}</small><span><i data-lucide="badge-check"></i> YouTube conectado</span></div></article>`] : [];
+  const cards = [...instagramCards, ...youtubeCard];
+  $("#accountsGrid").innerHTML=cards.length?cards.join(""):'<div class="empty account-empty"><b>Nenhuma conta conectada</b><span>Conecte Instagram ou YouTube para começar.</span></div>';
 }
 
 function showView(name){$$('[data-view]').forEach(b=>b.classList.toggle("active",b.dataset.view===name));$$('.view').forEach(v=>v.classList.remove("active"));$(`#${name}View`).classList.add("active");$("#viewName").textContent=labels[name][0];$("#pageTitle").textContent=labels[name][1];location.hash=name;window.scrollTo({top:0,behavior:"smooth"})}

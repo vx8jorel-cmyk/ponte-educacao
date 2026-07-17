@@ -1,6 +1,6 @@
 namespace Ponte.Server;
 
-public sealed class PublishingWorker(JsonStore store, InstagramService instagram, TikTokService tiktok, VideoBrandingService branding, ILogger<PublishingWorker> logger) : BackgroundService
+public sealed class PublishingWorker(JsonStore store, InstagramService instagram, TikTokService tiktok, YouTubeService youtube, VideoBrandingService branding, ILogger<PublishingWorker> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -25,7 +25,12 @@ public sealed class PublishingWorker(JsonStore store, InstagramService instagram
                             try { post.MediaPath = await branding.PrepareAsync(post, stoppingToken); await store.SavePostsAsync(posts); }
                             catch (Exception brandingError) { logger.LogWarning(brandingError, "Marca dinâmica indisponível para {PostId}; usando mídia original.", post.Id); }
                         }
-                        post.InstagramMediaId = post.Platform == "tiktok" ? await tiktok.PublishAsync(post, stoppingToken) : await instagram.PublishAsync(post, stoppingToken);
+                        post.InstagramMediaId = post.Platform switch
+                        {
+                            "tiktok" => await tiktok.PublishAsync(post, stoppingToken),
+                            "youtube" => await youtube.PublishAsync(post, stoppingToken),
+                            _ => await instagram.PublishAsync(post, stoppingToken)
+                        };
                         post.Status = "published";
                         post.Error = null;
                         post.NextRetryAt = null;

@@ -20,9 +20,17 @@ public sealed class ContentAiService(HttpClient http, IWebHostEnvironment enviro
         await WaitUntilReadyAsync(key, uploaded.Name, ct);
         var initial = await AnalyzeVideoAsync(key, uploaded, Path.GetFileName(path), ct);
         var verified = await VerifyAsync(key, initial, ct);
-        if (verified is not null && verified.Confidence >= initial.Confidence && !string.IsNullOrWhiteSpace(verified.Identity))
+        if (verified is not null && verified.Confidence >= 0.85 && !string.IsNullOrWhiteSpace(verified.Identity))
             initial = initial with { Identity = verified.Identity, Title = verified.Title, Confidence = verified.Confidence,
                 Evidence = initial.Evidence.Append($"Pesquisa factual: {verified.Summary}").ToArray() };
+        else if (RequiresFactualIdentity(initial))
+            initial = initial with
+            {
+                Identity = "",
+                Title = CreativeSceneTitle(initial),
+                Confidence = Math.Min(initial.Confidence, 0.74),
+                Evidence = initial.Evidence.Append("Identidade exata não confirmada; usando título criativo seguro baseado na cena.").ToArray()
+            };
 
         var emoji = initial.ContentType switch { "FILME" => "🎬", "ESPORTE" => "⚽", "PODCAST" => "🎙️", "LIVE" => "🔴", _ => "▶️" };
         var footer = initial.ContentType == "FILME"
@@ -69,10 +77,18 @@ public sealed class ContentAiService(HttpClient http, IWebHostEnvironment enviro
     private async Task<ContentAnalysis> AnalyzeVideoAsync(string key, Uploaded file, string filename, CancellationToken ct)
     {
         var prompt = """
-        Analise integralmente esta mídia autorizada: áudio, falas, textos, rostos, placas, uniformes, créditos e contexto.
-        Classifique como FILME, ESPORTE, PODCAST, LIVE ou OUTRO. Só afirme obra, evento ou programa quando houver duas
-        evidências independentes. Não invente identidade. Gere título natural em português do Brasil (máximo 90 caracteres),
-        sinopse factual de até 300 caracteres e 2 a 6 evidências curtas. Se houver dúvida, use título descritivo sem nomes.
+        Analise integralmente esta mídia autorizada: áudio, falas, textos visíveis, rostos, placas, uniformes, créditos, cenário,
+        época, atores, personagens e contexto. Classifique como FILME, ESPORTE, PODCAST, LIVE ou OUTRO.
+
+        Regras críticas:
+        - Não use o nome do arquivo como evidência.
+        - Para FILME/SÉRIE, só preencha identity se reconhecer a obra com sinais fortes: personagem + ator, fala marcante,
+          cenário específico, crédito, texto visual ou combinação rara de elementos.
+        - Se não tiver certeza do nome exato, deixe identity vazio e crie um título chamativo sobre a cena, sem nome de obra.
+        - Nunca chute nome de filme, ator, evento, podcast ou live.
+        - Gere título natural em português do Brasil com máximo de 90 caracteres.
+        - A sinopse deve explicar a cena em até 300 caracteres, sem prometer identidade que não foi confirmada.
+        - Liste 2 a 6 evidências curtas e objetivas.
         """;
         var body = new
         {
@@ -108,6 +124,32 @@ public sealed class ContentAiService(HttpClient http, IWebHostEnvironment enviro
                 json["confidence"]?.GetValue<double>() ?? 0, json["summary"]?.GetValue<string>() ?? "");
         }
         catch { return null; }
+    }
+
+    private static bool RequiresFactualIdentity(ContentAnalysis analysis)
+    {
+        if (analysis.ContentType is not ("FILME" or "ESPORTE" or "PODCAST" or "LIVE")) return false;
+        if (string.IsNullOrWhiteSpace(analysis.Identity)) return analysis.Confidence < 0.9;
+        return analysis.Confidence < 0.97;
+    }
+
+    private static string CreativeSceneTitle(ContentAnalysis analysis)
+    {
+        var synopsis = analysis.Synopsis.Trim();
+        if (synopsis.Length > 0)
+        {
+            var compact = synopsis.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).FirstOrDefault() ?? synopsis;
+            if (compact.Length > 86) compact = compact[..86].TrimEnd();
+            return compact.Length >= 18 ? compact : $"Cena intensa: {compact}";
+        }
+        return analysis.ContentType switch
+        {
+            "FILME" => "Uma cena intensa que prende até o último segundo",
+            "ESPORTE" => "Um lance decisivo que mudou o ritmo do jogo",
+            "PODCAST" => "Uma fala forte que merece ser ouvida",
+            "LIVE" => "Um momento inesperado que chamou atenção",
+            _ => "Um momento marcante em destaque"
+        };
     }
 
     private async Task<JsonNode> GenerateJsonAsync(string key, object body, CancellationToken ct, bool schemaMode = true)

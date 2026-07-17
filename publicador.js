@@ -55,7 +55,9 @@ function renderFiles() {
 
 function updateBatchPreview() {
   const total = files.length * selectedAccountIds().length;
-  $("#batchPreview").textContent = total ? `${total} publicação(ões) serão adicionadas à fila, respeitando o limite diário escolhido.` : "Selecione arquivos e contas para calcular o lote.";
+  const interval = readInteger("#intervalMinutes", 90, 1, 10080);
+  const daily = readInteger("#dailyLimit", 10, 1, 100);
+  $("#batchPreview").textContent = total ? `${total} publicação(ões) serão adicionadas à fila · intervalo de ${interval} min · até ${daily} por dia/conta.` : "Selecione arquivos e contas para calcular o lote.";
 }
 
 function renderQueue() {
@@ -112,6 +114,8 @@ $("#mediaInput").addEventListener("change", event => {
   updateBatchPreview();
 });
 $("#caption").addEventListener("input", () => { $("#captionCount").textContent = `${$("#caption").value.length} / 2.200`; });
+$("#intervalMinutes").addEventListener("input", updateBatchPreview);
+$("#dailyLimit").addEventListener("input", updateBatchPreview);
 $$('[data-status]').forEach(button => button.addEventListener("click", () => {
   queueFilter = button.dataset.status;
   $$("[data-status]").forEach(item => item.classList.toggle("active", item === button));
@@ -142,7 +146,8 @@ $("#postForm").addEventListener("submit", async event => {
   });
   if (current.length) chunks.push(current);
   const start = new Date(`${$("#publishDate").value}T${$("#publishTime").value}`);
-  const interval = Number($("#intervalMinutes").value);
+  const interval = readInteger("#intervalMinutes", 90, 1, 10080);
+  const dailyLimit = readInteger("#dailyLimit", 10, 1, 100);
   let processed = 0, scheduled = 0;
   try {
     for (let index = 0; index < chunks.length; index++) {
@@ -153,7 +158,7 @@ $("#postForm").addEventListener("submit", async event => {
       form.append("caption", $("#caption").value.trim());
       form.append("publishAt", new Date(start.getTime() + processed * interval * 60000).toISOString());
       form.append("intervalMinutes", String(interval));
-      form.append("dailyLimit", $("#dailyLimit").value);
+      form.append("dailyLimit", String(dailyLimit));
       form.append("useAi", $("#useAi").checked ? "true" : "false");
       const result = await api("/api/posts/bulk", { method: "POST", body: form });
       scheduled += result.count; processed += chunks[index].length;
@@ -170,8 +175,13 @@ $("#postForm").addEventListener("submit", async event => {
 
 function escapeHtml(value = "") { const span = document.createElement("span"); span.textContent = value; return span.innerHTML; }
 function formatBytes(value) { if (value < 1024 * 1024) return `${Math.ceil(value / 1024)} KB`; return `${(value / 1024 / 1024).toFixed(1)} MB`; }
+function readInteger(selector, fallback, min, max) {
+  const value = Number.parseInt($(selector).value, 10);
+  if (!Number.isFinite(value)) return fallback;
+  return Math.min(max, Math.max(min, value));
+}
 
-const start = new Date(Date.now() + 30 * 60 * 1000);
+const start = new Date(Date.now() + 5 * 60 * 1000);
 $("#publishDate").value = start.toLocaleDateString("en-CA");
 $("#publishTime").value = start.toTimeString().slice(0, 5);
 Promise.all([loadStatus(), loadPosts()]);

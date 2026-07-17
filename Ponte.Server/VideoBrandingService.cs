@@ -13,7 +13,8 @@ public sealed class VideoBrandingService(HttpClient http, JsonStore store, IWebH
         if (post.Type != "REELS") return post.MediaPath;
         var account = (await store.GetConnectionsAsync()).SingleOrDefault(item => item.UserId == post.AccountId);
         if (account is null || string.IsNullOrWhiteSpace(account.ProfilePictureUrl)) return post.MediaPath;
-        var signature = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{account.Username}|{account.DisplayName}|{account.ProfilePictureUrl}")))[..16];
+        var layout = Math.Abs(post.Id.GetHashCode()) % 4;
+        var signature = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{account.Username}|{account.DisplayName}|{account.ProfilePictureUrl}|layout:{layout}")))[..16];
         if (post.BrandingStatus == "ready" && post.BrandingSignature == signature && File.Exists(post.MediaPath)) return post.MediaPath;
 
         var ffmpeg = FindFfmpeg();
@@ -31,9 +32,13 @@ public sealed class VideoBrandingService(HttpClient http, JsonStore store, IWebH
         if (!File.Exists(output))
         {
             var font = FindFont();
-            var safeUsername = new string(account.Username.Where(character => char.IsLetterOrDigit(character) || character is '.' or '_').ToArray());
-            var drawText = font is null ? "" : $",drawtext=fontfile='{EscapeFilterPath(font)}':text='@{safeUsername}':x=150:y=h-88:fontsize=34:fontcolor=white:shadowcolor=black@0.7:shadowx=2:shadowy=2";
-            var filter = $"[1:v]scale=92:92[avatar];[0:v]drawbox=x=20:y=ih-125:w=iw-40:h=105:color=black@0.52:t=fill[base];[base][avatar]overlay=38:H-h-27{drawText}[outv]";
+            var safeUsername = EscapeDrawText("@" + new string(account.Username.Where(character => char.IsLetterOrDigit(character) || character is '.' or '_').ToArray()));
+            var safeName = EscapeDrawText(string.IsNullOrWhiteSpace(account.DisplayName) ? account.Username : account.DisplayName);
+            var geometry = LayoutGeometry(layout);
+            var drawText = font is null ? "" :
+                $",drawtext=fontfile='{EscapeFilterPath(font)}':text='{safeName}':x={geometry.NameX}:y={geometry.NameY}:fontsize=30:fontcolor=white:shadowcolor=black@0.75:shadowx=2:shadowy=2" +
+                $",drawtext=fontfile='{EscapeFilterPath(font)}':text='{safeUsername}':x={geometry.UserX}:y={geometry.UserY}:fontsize=24:fontcolor=white@0.86:shadowcolor=black@0.75:shadowx=2:shadowy=2";
+            var filter = $"[1:v]scale=92:92[avatar];[0:v]drawbox=x={geometry.BoxX}:y={geometry.BoxY}:w={geometry.BoxW}:h=116:color=black@0.50:t=fill[base];[base][avatar]overlay={geometry.AvatarX}:{geometry.AvatarY}{drawText}[outv]";
             var arguments = $"-hide_banner -loglevel error -y -i \"{source}\" -i \"{avatarPath}\" -filter_complex \"{filter}\" -map \"[outv]\" -map 0:a? -c:v libx264 -preset veryfast -crf 20 -c:a aac -b:a 128k -movflags +faststart \"{output}\"";
             await RunAsync(ffmpeg, arguments, ct);
         }
@@ -65,6 +70,20 @@ public sealed class VideoBrandingService(HttpClient http, JsonStore store, IWebH
     }
 
     private static string EscapeFilterPath(string path) => path.Replace("\\", "/").Replace(":", "\\:").Replace("'", "\\'");
+    private static string EscapeDrawText(string text) => text.Replace("\\", "\\\\").Replace(":", "\\:").Replace("'", "\\'").Replace("%", "\\%");
+
+    private static BrandingLayout LayoutGeometry(int layout) => layout switch
+    {
+        1 => new("iw-430", "ih-140", "410", "W-w-38", "w-285", "h-101", "w-285", "h-66"),
+        2 => new("20", "24", "390", "38", "150", "52", "150", "87"),
+        3 => new("iw-430", "24", "410", "W-w-38", "w-285", "52", "w-285", "87"),
+        _ => new("20", "ih-140", "390", "38", "150", "h-101", "150", "h-66")
+    };
+
+    private sealed record BrandingLayout(string BoxX, string BoxY, string BoxW, string AvatarX, string NameX, string NameY, string UserX, string UserY)
+    {
+        public string AvatarY => BoxY == "24" ? "36" : "H-h-39";
+    }
 
     private static async Task RunAsync(string executable, string arguments, CancellationToken ct)
     {

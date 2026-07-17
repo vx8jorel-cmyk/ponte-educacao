@@ -57,6 +57,8 @@ public sealed class JsonStore
     public Task SaveConnectionsAsync(List<InstagramConnection> connections) => WriteAsync("connections.json", connections);
     public Task<TikTokConnection?> GetTikTokConnectionAsync() => ReadAsync<TikTokConnection>("tiktok-connection.json");
     public Task SaveTikTokConnectionAsync(TikTokConnection? connection) => WriteAsync("tiktok-connection.json", connection);
+    public Task<YouTubeConnection?> GetYouTubeConnectionAsync() => ReadAsync<YouTubeConnection>("youtube-connection.json");
+    public Task SaveYouTubeConnectionAsync(YouTubeConnection? connection) => WriteAsync("youtube-connection.json", connection);
     public async Task<List<ScheduledPost>> GetPostsAsync() => await ReadAsync<List<ScheduledPost>>("posts.json") ?? [];
     public Task SavePostsAsync(List<ScheduledPost> posts) => WriteAsync("posts.json", posts);
 }
