@@ -66,8 +66,8 @@ function updateBatchPreview() {
   const instagramCount = platforms.includes("instagram") ? selectedAccountIds().length : 0;
   const youtubeCount = platforms.includes("youtube") && youtube.connected ? 1 : 0;
   const total = files.length * (instagramCount + youtubeCount);
-  const interval = readInteger("#intervalSeconds", 5400, 1, 604800);
-  const daily = readInteger("#dailyLimit", 10, 1, 100);
+  const interval = readInteger("#intervalSeconds", 0, 0, 604800);
+  const daily = readInteger("#dailyLimit", 5000, 1, 5000);
   $("#batchPreview").textContent = total ? `${total} publicação(ões) serão adicionadas à fila · intervalo de ${formatInterval(interval)} · até ${daily} por dia/conta.` : "Selecione arquivos e contas para calcular o lote.";
 }
 
@@ -122,7 +122,7 @@ async function loadPosts() {
 
 $("#connectAccount").addEventListener("click", () => { window.location.href = "/api/auth/instagram/start"; });
 $("#mediaInput").addEventListener("change", event => {
-  files = [...event.target.files].slice(0, 100);
+  files = [...event.target.files].slice(0, 1000);
   renderFiles();
   updateBatchPreview();
 });
@@ -165,8 +165,8 @@ $("#postForm").addEventListener("submit", async event => {
   });
   if (current.length) chunks.push(current);
   const start = new Date(`${$("#publishDate").value}T${$("#publishTime").value}`);
-  const interval = readInteger("#intervalSeconds", 5400, 1, 604800);
-  const dailyLimit = readInteger("#dailyLimit", 10, 1, 100);
+  const interval = readInteger("#intervalSeconds", 0, 0, 604800);
+  const dailyLimit = readInteger("#dailyLimit", 5000, 1, 5000);
   let processed = 0, scheduled = 0;
   try {
     for (let index = 0; index < chunks.length; index++) {
@@ -201,6 +201,7 @@ function readInteger(selector, fallback, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 function formatInterval(seconds) {
+  if (seconds === 0) return "imediato/mesmo horário";
   if (seconds < 60) return `${seconds}s`;
   if (seconds % 3600 === 0) return `${seconds / 3600}h`;
   if (seconds % 60 === 0) return `${seconds / 60}min`;

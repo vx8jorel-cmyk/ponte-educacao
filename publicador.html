@@ -21,7 +21,7 @@
   <main>
     <section class="composer" aria-labelledby="composerTitle">
       <div class="section-heading">
-        <div><span class="eyebrow">NOVO LOTE</span><h1 id="composerTitle">Programe até 100 arquivos</h1></div>
+        <div><span class="eyebrow">NOVO LOTE</span><h1 id="composerTitle">Programe até 1000 arquivos</h1></div>
         <button class="secondary" id="connectAccount" type="button"><i data-lucide="instagram"></i> Conectar conta</button>
       </div>
 
@@ -50,7 +50,7 @@
             <input id="mediaInput" type="file" multiple accept="image/jpeg,image/png,video/mp4,video/quicktime">
             <span class="upload-icon"><i data-lucide="images"></i></span>
             <strong>Escolha fotos e vídeos</strong>
-            <small>Até 100 arquivos · JPG, PNG, MP4 ou MOV</small>
+            <small>Até 1000 arquivos · JPG, PNG, MP4 ou MOV</small>
           </label>
           <div id="fileSummary" class="file-summary">Nenhum arquivo selecionado.</div>
           <div id="fileList" class="file-list"></div>
@@ -67,8 +67,8 @@
             <div><label for="publishTime">Horário</label><input id="publishTime" type="time" required></div>
           </div>
           <div class="row">
-            <div><label for="intervalSeconds">Intervalo entre posts (segundos)</label><input id="intervalSeconds" type="number" min="1" max="604800" step="1" value="5400" required></div>
-            <div><label for="dailyLimit">Posts por dia por conta</label><input id="dailyLimit" type="number" min="1" max="100" step="1" value="10" required></div>
+            <div><label for="intervalSeconds">Intervalo entre posts (segundos)</label><input id="intervalSeconds" type="number" min="0" max="604800" step="1" value="0" required></div>
+            <div><label for="dailyLimit">Posts por dia por conta</label><input id="dailyLimit" type="number" min="1" max="5000" step="1" value="5000" required></div>
           </div>
 
           <div class="batch-preview" id="batchPreview">Selecione arquivos e contas para calcular o lote.</div>

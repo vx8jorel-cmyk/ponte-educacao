@@ -165,7 +165,7 @@ app.MapPost("/api/posts/bulk", async (HttpRequest request, JsonStore db, Cancell
     var form = await request.ReadFormAsync(ct);
     var files = form.Files.GetFiles("media");
     if (files.Count == 0) return Results.BadRequest(new { error = "Selecione pelo menos uma foto ou um vídeo." });
-    if (files.Count > 100) return Results.BadRequest(new { error = "Envie no máximo 100 arquivos por lote." });
+    if (files.Count > 1000) return Results.BadRequest(new { error = "Envie no máximo 1000 arquivos por lote." });
 
     var platforms = form["platform"].Where(value => !string.IsNullOrWhiteSpace(value)).Select(value => value!.ToLowerInvariant()).Distinct().ToArray();
     if (platforms.Length == 0) platforms = ["instagram"];
@@ -177,13 +177,13 @@ app.MapPost("/api/posts/bulk", async (HttpRequest request, JsonStore db, Cancell
     if (platforms.Contains("instagram") && accountIds.Any(id => connections.All(item => item.UserId != id))) return Results.BadRequest(new { error = "Uma das contas selecionadas não está conectada." });
     if (platforms.Contains("youtube") && youtubeConnection is null) return Results.BadRequest(new { error = "Conecte o YouTube primeiro." });
     var totalPublications = (platforms.Contains("instagram") ? accountIds.Length * files.Count : 0) + (platforms.Contains("youtube") ? files.Count : 0);
-    if (totalPublications > 500) return Results.BadRequest(new { error = "O lote pode gerar no máximo 500 publicações." });
+    if (totalPublications > 5000) return Results.BadRequest(new { error = "O lote pode gerar no máximo 5000 publicações." });
 
     if (!DateTimeOffset.TryParse(form["publishAt"], out var requestedStart)) return Results.BadRequest(new { error = "Data inicial inválida." });
     var intervalSeconds = int.TryParse(form["intervalSeconds"], out var intervalSecondsValue)
-        ? Math.Clamp(intervalSecondsValue, 1, 604800)
-        : int.TryParse(form["intervalMinutes"], out var intervalMinutesValue) ? Math.Clamp(intervalMinutesValue * 60, 1, 604800) : 5400;
-    var dailyLimit = int.TryParse(form["dailyLimit"], out var limitValue) ? Math.Clamp(limitValue, 1, 100) : 10;
+        ? Math.Clamp(intervalSecondsValue, 0, 604800)
+        : int.TryParse(form["intervalMinutes"], out var intervalMinutesValue) ? Math.Clamp(intervalMinutesValue * 60, 0, 604800) : 0;
+    var dailyLimit = int.TryParse(form["dailyLimit"], out var limitValue) ? Math.Clamp(limitValue, 1, 5000) : 5000;
     var captionTemplate = form["caption"].ToString();
     var useAi = !string.Equals(form["useAi"], "false", StringComparison.OrdinalIgnoreCase);
     var posts = await db.GetPostsAsync();

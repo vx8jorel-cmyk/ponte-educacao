@@ -143,9 +143,9 @@ public sealed class InstagramService
 
     private async Task WaitForContainerAsync(string id, string token, CancellationToken ct)
     {
-        for (var attempt = 0; attempt < 80; attempt++)
+        for (var attempt = 0; attempt < 240; attempt++)
         {
-            await Task.Delay(TimeSpan.FromSeconds(15), ct);
+            await Task.Delay(TimeSpan.FromSeconds(5), ct);
             using var response = await _http.GetAsync(GraphUrl(id) + QueryString.Create(new Dictionary<string, string?> { ["fields"] = "status_code,status", ["access_token"] = token }), ct);
             var json = await ReadJsonAsync(response, ct); var status = json.GetProperty("status_code").GetString();
             if (status == "FINISHED") return;
