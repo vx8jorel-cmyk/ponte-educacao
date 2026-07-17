@@ -143,15 +143,15 @@ public sealed class InstagramService
 
     private async Task WaitForContainerAsync(string id, string token, CancellationToken ct)
     {
-        for (var attempt = 0; attempt < 20; attempt++)
+        for (var attempt = 0; attempt < 80; attempt++)
         {
-            await Task.Delay(TimeSpan.FromSeconds(3), ct);
+            await Task.Delay(TimeSpan.FromSeconds(15), ct);
             using var response = await _http.GetAsync(GraphUrl(id) + QueryString.Create(new Dictionary<string, string?> { ["fields"] = "status_code,status", ["access_token"] = token }), ct);
             var json = await ReadJsonAsync(response, ct); var status = json.GetProperty("status_code").GetString();
             if (status == "FINISHED") return;
             if (status is "ERROR" or "EXPIRED") throw new InvalidOperationException(json.TryGetProperty("status", out var detail) ? detail.GetString() : "Falha ao processar o Reel.");
         }
-        throw new TimeoutException("A Meta demorou demais para processar o Reel.");
+        throw new TimeoutException("A Meta demorou demais para processar o Reel. O post será tentado novamente automaticamente.");
     }
 
     private string GraphUrl(string path) => $"https://graph.instagram.com/{_options.GraphVersion}/{path.TrimStart('/')}";

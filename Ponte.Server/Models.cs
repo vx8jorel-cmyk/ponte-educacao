@@ -24,6 +24,8 @@ public sealed class ScheduledPost
     public string Status { get; set; } = "scheduled";
     public string? InstagramMediaId { get; set; }
     public string? Error { get; set; }
+    public int PublishAttempts { get; set; }
+    public DateTimeOffset? NextRetryAt { get; set; }
     public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.UtcNow;
 }
 
