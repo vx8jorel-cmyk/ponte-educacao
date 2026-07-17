@@ -14,6 +14,7 @@ public sealed class ScheduledPost
     public string Type { get; init; } = "IMAGE";
     public string Caption { get; set; } = "";
     public string Title { get; set; } = "";
+    public List<string> Tags { get; set; } = [];
     public string OriginalFileName { get; init; } = "";
     public string SourceMediaPath { get; init; } = "";
     public string MediaPath { get; set; } = "";
@@ -59,3 +60,6 @@ public sealed class YouTubeOptions
     public string RedirectUri { get; set; } = "";
     public bool IsConfigured => !string.IsNullOrWhiteSpace(ClientId) && !string.IsNullOrWhiteSpace(ClientSecret) && Uri.TryCreate(RedirectUri, UriKind.Absolute, out _);
 }
+
+public sealed record ToolLink(string Name, string Category, string Url, string Description, string PricingHint);
+public sealed record ToolRecommendation(string Summary, IReadOnlyList<string> Steps, IReadOnlyList<ToolLink> Tools);

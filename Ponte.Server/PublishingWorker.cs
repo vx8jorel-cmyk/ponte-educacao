@@ -57,7 +57,7 @@ public sealed class PublishingWorker(JsonStore store, InstagramService instagram
                 }
             }
             catch (Exception ex) { logger.LogError(ex, "Falha no ciclo do agendador"); }
-            await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
+            await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
         }
     }
 
