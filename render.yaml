@@ -4,10 +4,6 @@ services:
     runtime: docker
     plan: free
     healthCheckPath: /api/status
-    disk:
-      name: jorelwast-data
-      mountPath: /var/data
-      sizeGB: 1
     envVars:
       - key: Meta__AppId
         value: "1501344328133482"
