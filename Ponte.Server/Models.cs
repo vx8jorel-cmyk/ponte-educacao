@@ -60,6 +60,3 @@ public sealed class YouTubeOptions
     public string RedirectUri { get; set; } = "";
     public bool IsConfigured => !string.IsNullOrWhiteSpace(ClientId) && !string.IsNullOrWhiteSpace(ClientSecret) && Uri.TryCreate(RedirectUri, UriKind.Absolute, out _);
 }
-
-public sealed record ToolLink(string Name, string Category, string Url, string Description, string PricingHint);
-public sealed record ToolRecommendation(string Summary, IReadOnlyList<string> Steps, IReadOnlyList<ToolLink> Tools);
