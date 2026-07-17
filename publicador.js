@@ -1,6 +1,7 @@
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
 let accounts = [];
+let youtube = { configured: false, connected: false, account: null };
 let posts = [];
 let files = [];
 let queueFilter = "all";
@@ -24,6 +25,13 @@ async function api(path, options) {
 
 function selectedAccountIds() {
   return $$("#accountList input:checked").map(input => input.value);
+}
+
+function selectedPlatforms() {
+  const platforms = [];
+  if ($("#platformInstagram")?.checked) platforms.push("instagram");
+  if ($("#platformYouTube")?.checked) platforms.push("youtube");
+  return platforms;
 }
 
 function renderAccounts() {
@@ -54,7 +62,10 @@ function renderFiles() {
 }
 
 function updateBatchPreview() {
-  const total = files.length * selectedAccountIds().length;
+  const platforms = selectedPlatforms();
+  const instagramCount = platforms.includes("instagram") ? selectedAccountIds().length : 0;
+  const youtubeCount = platforms.includes("youtube") && youtube.connected ? 1 : 0;
+  const total = files.length * (instagramCount + youtubeCount);
   const interval = readInteger("#intervalSeconds", 5400, 1, 604800);
   const daily = readInteger("#dailyLimit", 10, 1, 100);
   $("#batchPreview").textContent = total ? `${total} publicação(ões) serão adicionadas à fila · intervalo de ${formatInterval(interval)} · até ${daily} por dia/conta.` : "Selecione arquivos e contas para calcular o lote.";
@@ -89,9 +100,11 @@ function renderQueue() {
 
 async function loadStatus() {
   try {
-    const status = await api("/api/status");
+    const [status, youtubeStatus] = await Promise.all([api("/api/status"), api("/api/youtube/status").catch(() => ({ configured: false, connected: false, account: null }))]);
+    youtube = youtubeStatus;
     accounts = status.accounts || (status.account ? [status.account] : []);
     $("#connectionBadge").innerHTML = status.configured ? `<i data-lucide="${accounts.length ? "badge-check" : "plug"}"></i> ${accounts.length ? `${accounts.length} conta(s) conectada(s)` : "Servidor pronto"}` : '<i data-lucide="circle-alert"></i> Configure a Meta';
+    $("#youtubeState").textContent = youtube.connected ? `Conectado: ${youtube.account?.title || "canal"}` : youtube.configured ? "Clique em Contas para conectar" : "Configure YouTube no Render";
     renderAccounts();
     updateBatchPreview();
     lucide.createIcons();
@@ -116,6 +129,8 @@ $("#mediaInput").addEventListener("change", event => {
 $("#caption").addEventListener("input", () => { $("#captionCount").textContent = `${$("#caption").value.length} / 2.200`; });
 $("#intervalSeconds").addEventListener("input", updateBatchPreview);
 $("#dailyLimit").addEventListener("input", updateBatchPreview);
+$("#platformInstagram").addEventListener("change", updateBatchPreview);
+$("#platformYouTube").addEventListener("change", updateBatchPreview);
 $$('[data-status]').forEach(button => button.addEventListener("click", () => {
   queueFilter = button.dataset.status;
   $$("[data-status]").forEach(item => item.classList.toggle("active", item === button));
@@ -125,8 +140,12 @@ $$('[data-status]').forEach(button => button.addEventListener("click", () => {
 $("#postForm").addEventListener("submit", async event => {
   event.preventDefault();
   const accountIds = selectedAccountIds();
-  if (!accounts.length) return showToast("Conecte uma conta do Instagram primeiro.", true);
-  if (!accountIds.length) return showToast("Marque ao menos uma conta.", true);
+  const platforms = selectedPlatforms();
+  if (!platforms.length) return showToast("Escolha Instagram, YouTube ou ambos.", true);
+  if (platforms.includes("instagram") && !accounts.length) return showToast("Conecte uma conta do Instagram primeiro.", true);
+  if (platforms.includes("instagram") && !accountIds.length) return showToast("Marque ao menos uma conta do Instagram.", true);
+  if (platforms.includes("youtube") && !youtube.connected) return showToast("Conecte o YouTube primeiro na aba Contas.", true);
+  if (platforms.includes("youtube") && files.some(file => !file.type.startsWith("video/"))) return showToast("YouTube aceita apenas vídeos neste lote. Remova imagens ou desmarque YouTube.", true);
   if (!files.length) return showToast("Selecione pelo menos um arquivo.", true);
   if (!$("#publishDate").value || !$("#publishTime").value) return showToast("Escolha data e horário inicial.", true);
 
@@ -155,6 +174,7 @@ $("#postForm").addEventListener("submit", async event => {
       const form = new FormData();
       chunks[index].forEach(file => form.append("media", file));
       accountIds.forEach(id => form.append("accountId", id));
+      platforms.forEach(platform => form.append("platform", platform));
       form.append("caption", $("#caption").value.trim());
       form.append("publishAt", new Date(start.getTime() + processed * interval * 1000).toISOString());
       form.append("intervalSeconds", String(interval));

@@ -86,12 +86,12 @@ public sealed class YouTubeService
             {
                 title,
                 description = post.Caption,
+                tags = post.Tags.Count > 0 ? post.Tags : TagsFromCaption(post.Caption),
                 categoryId = "22"
             },
             status = new
             {
-                privacyStatus = "private",
-                publishAt = post.PublishAt.UtcDateTime.ToString("O")
+                privacyStatus = "public"
             }
         };
 
@@ -165,6 +165,19 @@ public sealed class YouTubeService
         ".m4v" => "video/x-m4v",
         _ => "video/mp4"
     };
+
+    private static List<string> TagsFromCaption(string caption)
+    {
+        var tags = caption.Split([' ', '\r', '\n', ',', '.', ';', ':', '!', '?'], StringSplitOptions.RemoveEmptyEntries)
+            .Where(word => word.Length is >= 3 and <= 30)
+            .Select(word => word.Trim('#', '@', '(', ')', '[', ']', '"', '\''))
+            .Where(word => word.Length is >= 3 and <= 30)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(12)
+            .ToList();
+        if (tags.Count == 0) tags.AddRange(["jorelwast", "video", "conteudo"]);
+        return tags;
+    }
 
     private static async Task<JsonElement> ReadJsonAsync(HttpResponseMessage response, CancellationToken ct, string label)
     {

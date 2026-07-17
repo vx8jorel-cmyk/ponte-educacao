@@ -167,11 +167,17 @@ app.MapPost("/api/posts/bulk", async (HttpRequest request, JsonStore db, Cancell
     if (files.Count == 0) return Results.BadRequest(new { error = "Selecione pelo menos uma foto ou um vídeo." });
     if (files.Count > 100) return Results.BadRequest(new { error = "Envie no máximo 100 arquivos por lote." });
 
+    var platforms = form["platform"].Where(value => !string.IsNullOrWhiteSpace(value)).Select(value => value!.ToLowerInvariant()).Distinct().ToArray();
+    if (platforms.Length == 0) platforms = ["instagram"];
+    if (platforms.Any(platform => platform is not ("instagram" or "youtube"))) return Results.BadRequest(new { error = "Destino inválido. Use Instagram ou YouTube." });
     var accountIds = form["accountId"].Where(value => !string.IsNullOrWhiteSpace(value)).Distinct().ToArray();
     var connections = await db.GetConnectionsAsync();
-    if (accountIds.Length == 0) return Results.BadRequest(new { error = "Selecione ao menos uma conta do Instagram." });
-    if (accountIds.Any(id => connections.All(item => item.UserId != id))) return Results.BadRequest(new { error = "Uma das contas selecionadas não está conectada." });
-    if (accountIds.Length * files.Count > 500) return Results.BadRequest(new { error = "O lote pode gerar no máximo 500 publicações." });
+    var youtubeConnection = await db.GetYouTubeConnectionAsync();
+    if (platforms.Contains("instagram") && accountIds.Length == 0) return Results.BadRequest(new { error = "Selecione ao menos uma conta do Instagram." });
+    if (platforms.Contains("instagram") && accountIds.Any(id => connections.All(item => item.UserId != id))) return Results.BadRequest(new { error = "Uma das contas selecionadas não está conectada." });
+    if (platforms.Contains("youtube") && youtubeConnection is null) return Results.BadRequest(new { error = "Conecte o YouTube primeiro." });
+    var totalPublications = (platforms.Contains("instagram") ? accountIds.Length * files.Count : 0) + (platforms.Contains("youtube") ? files.Count : 0);
+    if (totalPublications > 500) return Results.BadRequest(new { error = "O lote pode gerar no máximo 500 publicações." });
 
     if (!DateTimeOffset.TryParse(form["publishAt"], out var requestedStart)) return Results.BadRequest(new { error = "Data inicial inválida." });
     var intervalSeconds = int.TryParse(form["intervalSeconds"], out var intervalSecondsValue)
@@ -184,31 +190,56 @@ app.MapPost("/api/posts/bulk", async (HttpRequest request, JsonStore db, Cancell
     var created = new List<ScheduledPost>();
     var savedMedia = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-    foreach (var accountId in accountIds)
+    if (platforms.Contains("instagram"))
+    {
+        foreach (var accountId in accountIds)
+        {
+            var cursor = requestedStart;
+            foreach (var file in files)
+            {
+                var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+                var isVideo = extension is ".mp4" or ".mov";
+                var isImage = extension is ".jpg" or ".jpeg" or ".png";
+                if (!isVideo && !isImage) return Results.BadRequest(new { error = $"Formato não aceito: {file.FileName}. Use JPG, PNG, MP4 ou MOV." });
+                if (file.Length == 0 || file.Length > 300L * 1024 * 1024) return Results.BadRequest(new { error = $"{file.FileName} está vazio ou ultrapassa 300 MB." });
+
+                cursor = NextAvailableSlot(posts.Concat(created), accountId!, cursor, dailyLimit, "instagram");
+                var path = await SaveUploadedFileAsync(file, extension, savedMedia, db.UploadDirectory, ct);
+                var post = new ScheduledPost
+                {
+                    Platform = "instagram",
+                    AccountId = accountId!,
+                    Type = isVideo ? "REELS" : "IMAGE",
+                    Caption = captionTemplate.Replace("{arquivo}", Path.GetFileNameWithoutExtension(file.FileName), StringComparison.OrdinalIgnoreCase),
+                    OriginalFileName = file.FileName,
+                    SourceMediaPath = path,
+                    MediaPath = path,
+                    AiStatus = useAi ? "pending" : "disabled",
+                    PublishAt = cursor.ToUniversalTime()
+                };
+                created.Add(post);
+                cursor = cursor.AddSeconds(intervalSeconds);
+            }
+        }
+    }
+
+    if (platforms.Contains("youtube") && youtubeConnection is not null)
     {
         var cursor = requestedStart;
         foreach (var file in files)
         {
             var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
-            var isVideo = extension is ".mp4" or ".mov";
-            var isImage = extension is ".jpg" or ".jpeg" or ".png";
-            if (!isVideo && !isImage) return Results.BadRequest(new { error = $"Formato não aceito: {file.FileName}. Use JPG, PNG, MP4 ou MOV." });
-            if (file.Length == 0 || file.Length > 300L * 1024 * 1024) return Results.BadRequest(new { error = $"{file.FileName} está vazio ou ultrapassa 300 MB." });
+            if (extension is not (".mp4" or ".mov" or ".m4v" or ".webm")) return Results.BadRequest(new { error = $"YouTube aceita apenas vídeo neste lote: {file.FileName}." });
+            if (file.Length == 0 || file.Length > 1024L * 1024 * 1024) return Results.BadRequest(new { error = $"{file.FileName} está vazio ou ultrapassa 1 GB para YouTube." });
 
-            cursor = NextAvailableSlot(posts.Concat(created), accountId!, cursor, dailyLimit);
-            var mediaKey = $"{file.FileName}:{file.Length}";
-            if (!savedMedia.TryGetValue(mediaKey, out var path))
-            {
-                var storedName = $"{Guid.NewGuid():N}{extension}";
-                path = Path.Combine(db.UploadDirectory, storedName);
-                await using var output = File.Create(path);
-                await file.CopyToAsync(output, ct);
-                savedMedia[mediaKey] = path;
-            }
+            cursor = NextAvailableSlot(posts.Concat(created), youtubeConnection.ChannelId, cursor, dailyLimit, "youtube");
+            var path = await SaveUploadedFileAsync(file, extension, savedMedia, db.UploadDirectory, ct);
             var post = new ScheduledPost
             {
-                AccountId = accountId!,
-                Type = isVideo ? "REELS" : "IMAGE",
+                Platform = "youtube",
+                AccountId = youtubeConnection.ChannelId,
+                Type = "VIDEO",
+                Title = Path.GetFileNameWithoutExtension(file.FileName),
                 Caption = captionTemplate.Replace("{arquivo}", Path.GetFileNameWithoutExtension(file.FileName), StringComparison.OrdinalIgnoreCase),
                 OriginalFileName = file.FileName,
                 SourceMediaPath = path,
@@ -265,7 +296,7 @@ app.MapGet("/api/insights", async (string accountId, InstagramService instagram,
 app.MapFallbackToFile("index.html", new StaticFileOptions { FileProvider = new PhysicalFileProvider(root) });
 app.Run();
 
-static DateTimeOffset NextAvailableSlot(IEnumerable<ScheduledPost> posts, string accountId, DateTimeOffset candidate, int dailyLimit)
+static DateTimeOffset NextAvailableSlot(IEnumerable<ScheduledPost> posts, string accountId, DateTimeOffset candidate, int dailyLimit, string platform)
 {
     TimeZoneInfo zone;
     try { zone = TimeZoneInfo.FindSystemTimeZoneById(OperatingSystem.IsWindows() ? "E. South America Standard Time" : "America/Sao_Paulo"); }
@@ -275,11 +306,23 @@ static DateTimeOffset NextAvailableSlot(IEnumerable<ScheduledPost> posts, string
     while (true)
     {
         var localCandidate = TimeZoneInfo.ConvertTime(candidate, zone);
-        var used = posts.Count(item => item.Platform == "instagram" && item.AccountId == accountId && item.Status != "failed" && TimeZoneInfo.ConvertTime(item.PublishAt, zone).Date == localCandidate.Date);
+        var used = posts.Count(item => item.Platform == platform && item.AccountId == accountId && item.Status != "failed" && TimeZoneInfo.ConvertTime(item.PublishAt, zone).Date == localCandidate.Date);
         if (used < dailyLimit) return candidate;
         var nextLocal = localCandidate.Date.AddDays(1).Add(originalLocal.TimeOfDay);
         candidate = new DateTimeOffset(nextLocal, zone.GetUtcOffset(nextLocal));
     }
+}
+
+static async Task<string> SaveUploadedFileAsync(IFormFile file, string extension, Dictionary<string, string> savedMedia, string uploadDirectory, CancellationToken ct)
+{
+    var mediaKey = $"{file.FileName}:{file.Length}";
+    if (savedMedia.TryGetValue(mediaKey, out var existingPath)) return existingPath;
+    var storedName = $"{Guid.NewGuid():N}{extension}";
+    var path = Path.Combine(uploadDirectory, storedName);
+    await using var output = File.Create(path);
+    await file.CopyToAsync(output, ct);
+    savedMedia[mediaKey] = path;
+    return path;
 }
 
 public sealed record AccountNameRequest(string Name);
