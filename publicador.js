@@ -66,9 +66,8 @@ function updateBatchPreview() {
   const instagramCount = platforms.includes("instagram") ? selectedAccountIds().length : 0;
   const youtubeCount = platforms.includes("youtube") && youtube.connected ? 1 : 0;
   const total = files.length * (instagramCount + youtubeCount);
-  const interval = readInteger("#intervalSeconds", 0, 0, 604800);
   const daily = readInteger("#dailyLimit", 5000, 1, 5000);
-  $("#batchPreview").textContent = total ? `${total} publicação(ões) serão adicionadas à fila · intervalo de ${formatInterval(interval)} · até ${daily} por dia/conta.` : "Selecione arquivos e contas para calcular o lote.";
+  $("#batchPreview").textContent = total ? `${total} publicação(ões) serão adicionadas à fila no mesmo horário inicial · até ${daily} por dia/conta.` : "Selecione arquivos e contas para calcular o lote.";
 }
 
 function renderQueue() {
@@ -127,7 +126,6 @@ $("#mediaInput").addEventListener("change", event => {
   updateBatchPreview();
 });
 $("#caption").addEventListener("input", () => { $("#captionCount").textContent = `${$("#caption").value.length} / 2.200`; });
-$("#intervalSeconds").addEventListener("input", updateBatchPreview);
 $("#dailyLimit").addEventListener("input", updateBatchPreview);
 $("#platformInstagram").addEventListener("change", updateBatchPreview);
 $("#platformYouTube").addEventListener("change", updateBatchPreview);
@@ -165,9 +163,8 @@ $("#postForm").addEventListener("submit", async event => {
   });
   if (current.length) chunks.push(current);
   const start = new Date(`${$("#publishDate").value}T${$("#publishTime").value}`);
-  const interval = readInteger("#intervalSeconds", 0, 0, 604800);
   const dailyLimit = readInteger("#dailyLimit", 5000, 1, 5000);
-  let processed = 0, scheduled = 0;
+  let scheduled = 0;
   try {
     for (let index = 0; index < chunks.length; index++) {
       button.textContent = `Enviando parte ${index + 1} de ${chunks.length}...`;
@@ -176,12 +173,11 @@ $("#postForm").addEventListener("submit", async event => {
       accountIds.forEach(id => form.append("accountId", id));
       platforms.forEach(platform => form.append("platform", platform));
       form.append("caption", $("#caption").value.trim());
-      form.append("publishAt", new Date(start.getTime() + processed * interval * 1000).toISOString());
-      form.append("intervalSeconds", String(interval));
+      form.append("publishAt", start.toISOString());
       form.append("dailyLimit", String(dailyLimit));
       form.append("useAi", $("#useAi").checked ? "true" : "false");
       const result = await api("/api/posts/bulk", { method: "POST", body: form });
-      scheduled += result.count; processed += chunks[index].length;
+      scheduled += result.count;
     }
     showToast(`${scheduled} publicação(ões) adicionada(s) à fila.`);
     files = [];
@@ -200,14 +196,6 @@ function readInteger(selector, fallback, min, max) {
   if (!Number.isFinite(value)) return fallback;
   return Math.min(max, Math.max(min, value));
 }
-function formatInterval(seconds) {
-  if (seconds === 0) return "imediato/mesmo horário";
-  if (seconds < 60) return `${seconds}s`;
-  if (seconds % 3600 === 0) return `${seconds / 3600}h`;
-  if (seconds % 60 === 0) return `${seconds / 60}min`;
-  return `${Math.floor(seconds / 60)}min ${seconds % 60}s`;
-}
-
 const start = new Date(Date.now() + 5 * 60 * 1000);
 $("#publishDate").value = start.toLocaleDateString("en-CA");
 $("#publishTime").value = start.toTimeString().slice(0, 5);

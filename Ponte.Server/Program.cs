@@ -180,9 +180,6 @@ app.MapPost("/api/posts/bulk", async (HttpRequest request, JsonStore db, Cancell
     if (totalPublications > 5000) return Results.BadRequest(new { error = "O lote pode gerar no máximo 5000 publicações." });
 
     if (!DateTimeOffset.TryParse(form["publishAt"], out var requestedStart)) return Results.BadRequest(new { error = "Data inicial inválida." });
-    var intervalSeconds = int.TryParse(form["intervalSeconds"], out var intervalSecondsValue)
-        ? Math.Clamp(intervalSecondsValue, 0, 604800)
-        : int.TryParse(form["intervalMinutes"], out var intervalMinutesValue) ? Math.Clamp(intervalMinutesValue * 60, 0, 604800) : 0;
     var dailyLimit = int.TryParse(form["dailyLimit"], out var limitValue) ? Math.Clamp(limitValue, 1, 5000) : 5000;
     var captionTemplate = form["caption"].ToString();
     var useAi = !string.Equals(form["useAi"], "false", StringComparison.OrdinalIgnoreCase);
@@ -218,7 +215,6 @@ app.MapPost("/api/posts/bulk", async (HttpRequest request, JsonStore db, Cancell
                     PublishAt = cursor.ToUniversalTime()
                 };
                 created.Add(post);
-                cursor = cursor.AddSeconds(intervalSeconds);
             }
         }
     }
@@ -248,7 +244,6 @@ app.MapPost("/api/posts/bulk", async (HttpRequest request, JsonStore db, Cancell
                 PublishAt = cursor.ToUniversalTime()
             };
             created.Add(post);
-            cursor = cursor.AddSeconds(intervalSeconds);
         }
     }
 
